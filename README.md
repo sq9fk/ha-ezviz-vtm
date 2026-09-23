@@ -33,7 +33,7 @@ A battery device is only woken while someone watches live.
   - VTM fallback for the stream source;
   - still images that don't wake the device;
   - no RTSP-credentials discovery prompt for devices without RTSP.
-- `manifest.json`: pyezvizapi from GitHub (VTM support is not on PyPI yet); `http` dependency.
+- `manifest.json`: pyezvizapi 1.0.0.7 → 1.0.5.0 (adds the VTM cloud stream API); `http` dependency.
 - `select.py`: the battery work mode is now reported as a number by pyezvizapi.
 - `switch.py`: `SupportExt.SupportFulldayRecord` was renamed `SupportFullDayRecord`.
 - `translations/en.json`: generated from `strings.json`. Custom integrations need compiled translations.
@@ -41,7 +41,7 @@ A battery device is only woken while someone watches live.
 ## Install
 
 1. Copy `custom_components/ezviz` to `/config/custom_components/ezviz`.
-2. Restart Home Assistant. The first start installs pyezvizapi from GitHub, so
+2. Restart Home Assistant. The first start installs pyezvizapi 1.0.5.0 from PyPI, so
    it needs internet access. HA logs a warning that the custom `ezviz`
    integration overrides the core one. That is expected.
 3. The existing EZVIZ config entry keeps working; no reconfiguration needed.

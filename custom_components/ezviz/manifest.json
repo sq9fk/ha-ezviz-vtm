@@ -16,7 +16,7 @@
     "pyezvizapi"
   ],
   "requirements": [
-    "pyezvizapi @ https://github.com/RenierM26/pyEzvizApi/archive/c713642fd99c3467efe1285dfc5d085714a00b50.tar.gz"
+    "pyezvizapi==1.0.5.0"
   ],
-  "version": "2026.9.3.1"
+  "version": "2026.9.3.2"
 }
