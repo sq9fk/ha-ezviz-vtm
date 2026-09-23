@@ -1,11 +1,22 @@
 {
   "domain": "ezviz",
   "name": "EZVIZ",
-  "codeowners": ["@RenierM26"],
+  "codeowners": [
+    "@RenierM26"
+  ],
   "config_flow": true,
-  "dependencies": ["ffmpeg"],
+  "dependencies": [
+    "ffmpeg",
+    "http"
+  ],
   "documentation": "https://www.home-assistant.io/integrations/ezviz",
   "iot_class": "cloud_polling",
-  "loggers": ["paho_mqtt", "pyezvizapi"],
-  "requirements": ["pyezvizapi==1.0.0.7"]
+  "loggers": [
+    "paho_mqtt",
+    "pyezvizapi"
+  ],
+  "requirements": [
+    "pyezvizapi @ https://github.com/RenierM26/pyEzvizApi/archive/c713642fd99c3467efe1285dfc5d085714a00b50.tar.gz"
+  ],
+  "version": "2026.9.3.1"
 }
