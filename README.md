@@ -14,8 +14,8 @@ This integration:
 
 1. Detects devices without RTSP from the cloud `CONNECTION.localRtspPort == 0`
    (or cameras without RTSP credentials).
-2. Serves the relay at a local URL,
-   `http://127.0.0.1:<port>/api/ezviz/vtm/<random token>/<serial>.ts`. FFmpeg
+2. Serves the relay on the HA internal URL,
+   `<internal URL>/api/ezviz/vtm/<serial>.ts?auth=<per-camera token>`. FFmpeg
    remuxes it to MPEG-TS with codec copy, with no transcoding.
 3. Returns that URL from `stream_source()`, so the regular camera card, HLS
    (`stream`) and WebRTC (bundled go2rtc) all work.
