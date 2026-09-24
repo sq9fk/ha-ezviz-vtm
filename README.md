@@ -40,6 +40,18 @@ A battery device is only woken while someone watches live.
 
 ## Install
 
+Requires Home Assistant 2026.9 or newer.
+
+### With HACS
+
+1. In HACS, open the menu (⋮) > **Custom repositories**.
+2. Add `https://github.com/sq9fk/ha-ezviz-vtm` with the type **Integration**.
+3. Search for **EZVIZ (VTM live view)**, select **Download**, and restart Home Assistant.
+
+HACS then offers updates of this repository like any other integration.
+
+### Manually
+
 1. Copy `custom_components/ezviz` to `/config/custom_components/ezviz`.
 2. Restart Home Assistant. The first start installs pyezvizapi 1.0.5.0 from PyPI, so
    it needs internet access. HA logs a warning that the custom `ezviz`
