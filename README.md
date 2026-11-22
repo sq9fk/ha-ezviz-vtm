@@ -8,15 +8,15 @@ removed RTSP ([home-assistant/core#125311](https://github.com/home-assistant/cor
 
 ## How it works
 
-The EZVIZ apps show live video through the **VTM cloud relay** (MPEG-PS over
-TCP). [pyezvizapi](https://github.com/RenierM26/pyEzvizApi) can open that relay.
-This integration:
+The EZVIZ apps show live video through the **EZVIZ cloud**.
+[pyezvizapi](https://github.com/RenierM26/pyEzvizApi) 2.6.0 turns that into a
+ready MPEG-TS stream (`open_live_mpegts_stream`), handling the relay, the FFmpeg
+remux and encryption checks. This integration:
 
-1. Detects devices without RTSP from the cloud `CONNECTION.localRtspPort == 0`
-   (or cameras without RTSP credentials).
-2. Serves the relay on the HA internal URL,
-   `<internal URL>/api/ezviz/vtm/<serial>.ts?auth=<per-camera token>`. FFmpeg
-   remuxes it to MPEG-TS with codec copy, with no transcoding.
+1. Uses the cloud stream when the cloud reports no RTSP port
+   (`reported_local_rtsp_port == 0`) or no RTSP credentials are configured.
+2. Serves the stream on the HA internal URL,
+   `<internal URL>/api/ezviz/vtm/<serial>.ts?auth=<per-camera token>`.
 3. Returns that URL from `stream_source()`, so the regular camera card, HLS
    (`stream`) and WebRTC (bundled go2rtc) all work.
 
@@ -28,12 +28,12 @@ A battery device is only woken while someone watches live.
 
 ## Changes against core 2026.9.3
 
-- `vtm.py` (new): VTM relay → MPEG-TS HTTP view.
+- `vtm.py` (new): HTTP view serving the pyezvizapi live MPEG-TS stream.
 - `camera.py`:
-  - VTM fallback for the stream source;
+  - cloud stream fallback for the stream source;
   - still images that don't wake the device;
   - no RTSP-credentials discovery prompt for devices without RTSP.
-- `manifest.json`: pyezvizapi 1.0.0.7 → 1.0.5.0 (adds the VTM cloud stream API); `http` dependency.
+- `manifest.json`: pyezvizapi 1.0.0.7 → 2.6.0 (adds the live MPEG-TS stream API); `http` dependency.
 - `select.py`: the battery work mode is now reported as a number by pyezvizapi.
 - `switch.py`: `SupportExt.SupportFulldayRecord` was renamed `SupportFullDayRecord`.
 - `translations/en.json`: generated from `strings.json`. Custom integrations need compiled translations.
@@ -53,7 +53,7 @@ HACS then offers updates of this repository like any other integration.
 ### Manually
 
 1. Copy `custom_components/ezviz` to `/config/custom_components/ezviz`.
-2. Restart Home Assistant. The first start installs pyezvizapi 1.0.5.0 from PyPI, so
+2. Restart Home Assistant. The first start installs pyezvizapi 2.6.0 from PyPI, so
    it needs internet access. HA logs a warning that the custom `ezviz`
    integration overrides the core one. That is expected.
 3. The existing EZVIZ config entry keeps working; no reconfiguration needed.
@@ -64,19 +64,21 @@ To go back to the core integration, delete the folder and restart.
 
 - Live view depends on the EZVIZ cloud and internet access.
 - **Video encryption must be off** for the device in the EZVIZ app. Encrypted
-  VTM streams are not supported yet.
-- The first frame arrives after about 5–10 s: the device wakes up, then the
-  stream starts.
-- Every viewer opens its own relay session. On battery devices, keep live
+  streams are not supported yet.
+- The first frame arrives after about 6–10 s: a sleeping battery device needs
+  about 10 s to wake up, so the stream allows 30 s to start.
+- Every viewer opens its own cloud session. On battery devices, keep live
   views short.
 - Video is passed through as sent (DP2C: HEVC 1080p15 + AAC). WebRTC needs a
   browser with HEVC support. Otherwise the frontend falls back to HLS.
 
 ## Tested
 
-HA 2026.9.3 (Docker, Python 3.14) with an EZVIZ DP2C (firmware V5.3.3 build 250911):
+Home Assistant stable (Docker, Python 3.14) with pyezvizapi 2.6.0 and an
+EZVIZ DP2C (firmware V5.3.3 build 250911):
 
 - the integration loads all platforms;
-- the HA `stream` worker has its first keyframe after about 6 s;
-- the go2rtc 1.9.14 source works;
+- direct playback of the stream URL: first frame after about 9 s from sleep;
+- the HA `stream` worker has its first keyframe after about 7 s;
+- the bundled go2rtc source returns a frame after about 6 s;
 - still images without a stream return the last alarm picture.
