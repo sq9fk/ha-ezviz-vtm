@@ -16,7 +16,7 @@
     "pyezvizapi"
   ],
   "requirements": [
-    "pyezvizapi==1.0.5.0"
+    "pyezvizapi==2.6.0"
   ],
-  "version": "2026.9.3.8"
+  "version": "2026.9.3.9"
 }

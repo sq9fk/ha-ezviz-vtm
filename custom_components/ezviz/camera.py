@@ -31,9 +31,14 @@ from .const import (
 )
 from .coordinator import EzvizConfigEntry, EzvizDataUpdateCoordinator
 from .entity import EzvizEntity
-from .vtm import async_register_vtm_camera, rtsp_available, vtm_stream_url
+from .vtm import async_register_vtm_camera, vtm_stream_url
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _reports_no_rtsp(camera_data: dict) -> bool:
+    """Return True when the cloud reports that the device has no RTSP port."""
+    return camera_data.get("reported_local_rtsp_port") == 0
 
 
 async def async_setup_entry(
@@ -68,7 +73,7 @@ async def async_setup_entry(
                 ffmpeg_arguments,
             )
 
-        elif rtsp_available(value):
+        elif not _reports_no_rtsp(value):
             discovery_flow.async_create_flow(
                 hass,
                 DOMAIN,
@@ -93,14 +98,14 @@ async def async_setup_entry(
             camera_rtsp_stream = ""
 
         else:
-            # No RTSP on the device: live view goes through the VTM cloud relay,
-            # which needs no camera credentials.
+            # No RTSP on the device: live view comes from pyezvizapi through
+            # the EZVIZ cloud, which needs no camera credentials.
             ffmpeg_arguments = DEFAULT_FFMPEG_ARGUMENTS
             camera_username = DEFAULT_CAMERA_USERNAME
             camera_password = None
             camera_rtsp_stream = None
 
-        use_vtm = camera_password is None or not rtsp_available(value)
+        use_vtm = camera_password is None or _reports_no_rtsp(value)
         if use_vtm:
             async_register_vtm_camera(hass, entry, camera, coordinator.ezviz_client)
 
