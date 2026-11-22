@@ -2,7 +2,7 @@
 
 A `custom_components` override of the Home Assistant core
 [EZVIZ integration](https://www.home-assistant.io/integrations/ezviz/) (based on
-HA **2026.9.3**) that restores live view for EZVIZ devices without RTSP:
+HA **2026.11.2**) that restores live view for EZVIZ devices without RTSP:
 battery cameras, doorbells such as the DP2C, and cameras whose firmware
 removed RTSP ([home-assistant/core#125311](https://github.com/home-assistant/core/issues/125311)).
 
@@ -13,34 +13,34 @@ The EZVIZ apps show live video through the **EZVIZ cloud**.
 ready MPEG-TS stream (`open_live_mpegts_stream`), handling the relay, the FFmpeg
 remux and encryption checks. This integration:
 
-1. Uses the cloud stream when the cloud reports no RTSP port
-   (`reported_local_rtsp_port == 0`) or no RTSP credentials are configured.
+1. Uses the cloud stream for every camera without configured RTSP credentials
+   (no camera config entry). Configured RTSP credentials always win. When the
+   cloud reports no RTSP port (`reported_local_rtsp_port == 0`), it doesn't ask
+   for RTSP credentials either.
 2. Serves the stream on the HA internal URL,
    `<internal URL>/api/ezviz/vtm/<serial>.ts?auth=<per-camera token>`.
 3. Returns that URL from `stream_source()`, so the regular camera card, HLS
    (`stream`) and WebRTC (bundled go2rtc) all work.
 
-RTSP cameras keep using RTSP.
+Cameras with configured RTSP keep using RTSP.
 
 Still images do **not** wake the device. While a live stream is running, the
 still image is its latest keyframe. Otherwise it is the last alarm picture.
 A battery device is only woken while someone watches live.
 
-## Changes against core 2026.9.3
+## Changes against core 2026.11.2
 
 - `vtm.py` (new): HTTP view serving the pyezvizapi live MPEG-TS stream.
 - `camera.py`:
   - cloud stream fallback for the stream source;
   - still images that don't wake the device;
   - no RTSP-credentials discovery prompt for devices without RTSP.
-- `manifest.json`: pyezvizapi 1.0.0.7 → 2.6.0 (adds the live MPEG-TS stream API); `http` dependency.
-- `select.py`: the battery work mode is now reported as a number by pyezvizapi.
-- `switch.py`: `SupportExt.SupportFulldayRecord` was renamed `SupportFullDayRecord`.
+- `manifest.json`: pyezvizapi 1.0.5.0 → 2.6.0 (adds the live MPEG-TS stream API); `http` dependency.
 - `translations/en.json`: generated from `strings.json`. Custom integrations need compiled translations.
 
 ## Install
 
-Requires Home Assistant 2026.9 or newer.
+Requires Home Assistant 2026.11 or newer.
 
 ### With HACS
 

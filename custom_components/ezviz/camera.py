@@ -15,10 +15,7 @@ from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.entity_platform import (
-    AddConfigEntryEntitiesCallback,
-    async_get_current_platform,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
     ATTR_SERIAL,
@@ -26,7 +23,6 @@ from .const import (
     DEFAULT_CAMERA_USERNAME,
     DEFAULT_FFMPEG_ARGUMENTS,
     DOMAIN,
-    SERVICE_WAKE_DEVICE,
 )
 from .coordinator import EzvizConfigEntry, EzvizDataUpdateCoordinator
 from .entity import EzvizEntity
@@ -125,12 +121,6 @@ async def async_setup_entry(
         )
 
     async_add_entities(camera_entities)
-
-    platform = async_get_current_platform()
-
-    platform.async_register_entity_service(
-        SERVICE_WAKE_DEVICE, None, "perform_wake_device"
-    )
 
 
 class EzvizCamera(EzvizEntity, Camera):
