@@ -47,7 +47,10 @@ A battery device is only woken while someone watches live.
   then the device is woken, the recording covering the event is fetched through
   the EZVIZ cloud (pyezvizapi cloud playback, about a minute), remuxed to MP4,
   kept in the media folder (`ezviz/<serial>/`, 30 days) and played on a small
-  player page. Use the link as the `clickAction` of a phone notification:
+  player page. The link is absolute (external URL first, see
+  *Settings → System → Network*), so the companion apps open it in the phone
+  browser; their dashboard view only shows the Home Assistant frontend. Use the
+  link as the `clickAction` of a phone notification:
 
   ```yaml
   - action: ezviz.get_clip_url

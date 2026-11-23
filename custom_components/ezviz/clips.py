@@ -34,6 +34,7 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
@@ -105,14 +106,24 @@ async def async_register_clip_camera(
 
 
 def clip_url(hass: HomeAssistant, serial: str, event_time: datetime) -> str:
-    """Return the signed relative link to the recording of one event."""
+    """Return the signed link to the recording of one event.
+
+    The link is absolute when Home Assistant knows its URL. The companion
+    apps open relative links in their dashboard view, which only shows the
+    Home Assistant frontend, and absolute links in the browser.
+    """
     if (data := hass.data.get(DATA_CLIPS)) is None or serial not in data.cameras:
         raise HomeAssistantError(f"Recordings of {serial} are not available")
     if event_time.tzinfo is not None:
         event_time = dt_util.as_local(event_time)
     stamp = event_time.strftime(STAMP_FORMAT)
     path = CLIP_URL.format(serial=serial, name=stamp)
-    return f"{path}?sig={_sign(data.secret, serial, stamp)}"
+    link = f"{path}?sig={_sign(data.secret, serial, stamp)}"
+    try:
+        base_url = get_url(hass, prefer_external=True)
+    except NoURLAvailableError:
+        return link
+    return f"{base_url}{link}"
 
 
 def _sign(secret: bytes, serial: str, stamp: str) -> str:
