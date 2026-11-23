@@ -41,6 +41,25 @@ A battery device is only woken while someone watches live.
   two polls. When the latest event changes, the entity reads the recent ring
   history (pyezvizapi `get_intercom_events`) and fires `ring` once for every new
   press.
+- `clips.py` (new) and the `ezviz.get_clip_url` action: returns a signed link to
+  the recording of an event (by default the latest) from the device storage
+  (SD card or built-in memory). Nothing is downloaded until the link is opened;
+  then the device is woken, the recording covering the event is fetched through
+  the EZVIZ cloud (pyezvizapi cloud playback, about a minute), remuxed to MP4,
+  kept in the media folder (`ezviz/<serial>/`, 30 days) and played on a small
+  player page. Use the link as the `clickAction` of a phone notification:
+
+  ```yaml
+  - action: ezviz.get_clip_url
+    target:
+      entity_id: camera.my_doorbell
+    response_variable: clip
+  - action: notify.mobile_app_my_phone
+    data:
+      message: Motion at the door
+      data:
+        clickAction: "{{ clip['camera.my_doorbell'].url }}"
+  ```
 - `manifest.json`: pyezvizapi 1.0.5.0 → 2.6.0 (adds the live MPEG-TS stream API); `http` dependency.
 - `translations/en.json`: generated from `strings.json`. Custom integrations need compiled translations.
 

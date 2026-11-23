@@ -29,3 +29,14 @@ wake_device:
     entity:
       integration: ezviz
       domain: camera
+
+get_clip_url:
+  target:
+    entity:
+      integration: ezviz
+      domain: camera
+  fields:
+    event_time:
+      example: "2026-11-23 06:59:11"
+      selector:
+        datetime:

@@ -1,5 +1,6 @@
 """Support ezviz camera devices."""
 
+from datetime import datetime
 import logging
 from typing import override
 
@@ -12,11 +13,13 @@ from homeassistant.components.ffmpeg import get_ffmpeg_manager
 from homeassistant.components.stream import CONF_USE_WALLCLOCK_AS_TIMESTAMPS
 from homeassistant.config_entries import SOURCE_IGNORE, SOURCE_INTEGRATION_DISCOVERY
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceResponse
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import discovery_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .clips import async_register_clip_camera, clip_url
 from .const import (
     ATTR_SERIAL,
     CONF_FFMPEG_ARGUMENTS,
@@ -105,6 +108,7 @@ async def async_setup_entry(
         use_vtm = camera_password is None
         if use_vtm:
             async_register_vtm_camera(hass, entry, camera, coordinator.ezviz_client)
+        await async_register_clip_camera(hass, entry, camera, coordinator.ezviz_client)
 
         camera_entities.append(
             EzvizCamera(
@@ -255,6 +259,20 @@ class EzvizCamera(EzvizEntity, Camera):
         )
 
         return self._rtsp_stream
+
+    async def async_get_clip_url(
+        self, event_time: datetime | None = None
+    ) -> ServiceResponse:
+        """Return the link to the recording of an event, by default the latest."""
+        if event_time is None:
+            last = self.data.get("last_alarm_time")
+            try:
+                event_time = datetime.strptime(str(last), "%Y-%m-%d %H:%M:%S")
+            except ValueError as err:
+                raise HomeAssistantError(
+                    f"{self._serial} has no event with a known time"
+                ) from err
+        return {"url": clip_url(self.hass, self._serial, event_time)}
 
     def perform_wake_device(self) -> None:
         """Basically wakes the camera by querying the device."""

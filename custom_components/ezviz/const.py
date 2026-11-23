@@ -26,6 +26,8 @@ ATTR_TYPE = "type_value"
 
 # Service names
 SERVICE_WAKE_DEVICE = "wake_device"
+SERVICE_GET_CLIP_URL = "get_clip_url"
+ATTR_EVENT_TIME = "event_time"
 SERVICE_DETECTION_SENSITIVITY = "set_alarm_detection_sensibility"
 
 # Defaults

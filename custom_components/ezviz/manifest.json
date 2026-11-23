@@ -25,5 +25,5 @@
   "requirements": [
     "pyezvizapi==2.6.0"
   ],
-  "version": "2026.11.2.2"
+  "version": "2026.11.2.3"
 }

@@ -199,6 +199,16 @@
     }
   },
   "services": {
+    "get_clip_url": {
+      "description": "Returns a link that downloads and plays the recording of an event from the device storage. The device is only woken when the link is opened.",
+      "fields": {
+        "event_time": {
+          "description": "Local time of the event. Defaults to the latest event.",
+          "name": "Event time"
+        }
+      },
+      "name": "Get recording link"
+    },
     "set_alarm_detection_sensibility": {
       "description": "Changes the sensibility level of the motion detection.",
       "fields": {
