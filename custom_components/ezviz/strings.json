@@ -71,6 +71,11 @@
         "name": "PTZ up"
       }
     },
+    "event": {
+      "doorbell": {
+        "name": "Doorbell"
+      }
+    },
     "image": {
       "last_motion_image": {
         "name": "Last motion image"

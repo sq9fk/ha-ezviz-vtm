@@ -35,6 +35,12 @@ A battery device is only woken while someone watches live.
   - cloud stream fallback for the stream source;
   - still images that don't wake the device;
   - no RTSP-credentials discovery prompt for devices without RTSP.
+- `event.py` (new): a **Doorbell** event entity (`event.<device>_doorbell`) for
+  doorbells. The cloud data only keeps the latest event, and a doorbell press is
+  usually followed by a motion event within seconds, so the ring was lost between
+  two polls. When the latest event changes, the entity reads the recent ring
+  history (pyezvizapi `get_intercom_events`) and fires `ring` once for every new
+  press.
 - `manifest.json`: pyezvizapi 1.0.5.0 → 2.6.0 (adds the live MPEG-TS stream API); `http` dependency.
 - `translations/en.json`: generated from `strings.json`. Custom integrations need compiled translations.
 
