@@ -52,9 +52,14 @@ KEEP_DAYS = 30
 SEARCH_BEFORE = timedelta(minutes=2)
 SEARCH_AFTER = timedelta(minutes=3)
 MATCH_SLACK = timedelta(seconds=10)
-FIND_ATTEMPTS = 4
-FIND_RETRY_DELAY = 20.0
+# How long to keep searching for the recording. A recording is listed only
+# after the device has finished it, which can be a minute after the event.
+FIND_TIMEOUT = 150.0
+FIND_RETRY_DELAY = 10.0
 WAKE_DELAY = 5.0
+DOWNLOAD_ATTEMPTS = 2
+# Result code of a record search whose time window holds no recording.
+NO_RECORDS_CODE = "2004"
 
 STORAGE_KEY = f"{DOMAIN}.clips"
 STORAGE_VERSION = 1
@@ -174,7 +179,11 @@ class EzvizClipView(HomeAssistantView):
         if await hass.async_add_executor_job(target.is_file):
             status = {"state": "ready"}
         else:
-            status = _status(_get_download(hass, data, serial, event_time, target))
+            # Only opening the page retries a failed download, so the page's
+            # status polls can see the error.
+            status = _status(
+                _get_download(hass, data, serial, event_time, target, retry=kind == "")
+            )
         if kind == "json":
             return web.json_response(status)
         return web.Response(
@@ -189,20 +198,28 @@ def _get_download(
     serial: str,
     event_time: datetime,
     target: Path,
+    *,
+    retry: bool,
 ) -> asyncio.Task[Path]:
-    """Return the download of a recording, (re)starting it if needed."""
+    """Return the download of a recording, starting it if needed."""
     key = f"{serial}/{target.stem}"
     task = data.downloads.get(key)
-    if task is not None and not (task.done() and task.exception() is not None):
+    if task is not None and not (
+        retry and task.done() and (task.cancelled() or task.exception() is not None)
+    ):
         return task
     task = hass.async_create_background_task(
         _async_download(hass, data.cameras[serial].client, serial, event_time, target),
         f"ezviz clip {key}",
     )
     data.downloads[key] = task
-    task.add_done_callback(
-        lambda _: hass.loop.call_later(600, data.downloads.pop, key, None)
-    )
+
+    @callback
+    def _forget() -> None:
+        if data.downloads.get(key) is task:
+            del data.downloads[key]
+
+    task.add_done_callback(lambda _: hass.loop.call_later(600, _forget))
     return task
 
 
@@ -250,20 +267,27 @@ def _download(
     target.parent.mkdir(parents=True, exist_ok=True)
     raw = target.with_suffix(".ps.part")
     part = target.with_suffix(".mp4.part")
-    try:
-        _LOGGER.debug("%s: downloading recording %s - %s", serial, begin, end)
-        client.save_clip_with_options(
-            serial,
-            str(raw),
-            ClipOptions(
-                source=CloudPlaybackClipSource(
-                    begin_utc.strftime("%Y%m%dT%H%M%SZ"),
-                    end_utc.strftime("%Y%m%dT%H%M%SZ"),
-                    timezone=time_zone,
-                    timeout=30.0,
-                )
-            ),
+    options = ClipOptions(
+        source=CloudPlaybackClipSource(
+            begin_utc.strftime("%Y%m%dT%H%M%SZ"),
+            end_utc.strftime("%Y%m%dT%H%M%SZ"),
+            timezone=time_zone,
+            timeout=30.0,
         )
+    )
+    try:
+        for attempt in range(DOWNLOAD_ATTEMPTS):
+            _LOGGER.debug("%s: downloading recording %s - %s", serial, begin, end)
+            try:
+                client.save_clip_with_options(serial, str(raw), options)
+                break
+            except PyEzvizError as err:
+                if attempt == DOWNLOAD_ATTEMPTS - 1:
+                    raise
+                _LOGGER.debug("%s: download failed, retrying: %s", serial, err)
+                # The device may have gone back to sleep since the search.
+                client.get_detection_sensibility(serial)
+                time.sleep(WAKE_DELAY)
         _remux(ffmpeg, raw, part)
         part.replace(target)
     finally:
@@ -279,25 +303,35 @@ def _find_recording(
     """Return the local begin and end of the recording covering the event."""
     start = (event_time - SEARCH_BEFORE).strftime("%Y-%m-%d %H:%M:%S")
     stop = (event_time + SEARCH_AFTER).strftime("%Y-%m-%d %H:%M:%S")
+    deadline = time.monotonic() + FIND_TIMEOUT
     last_error: PyEzvizError | None = None
-    for attempt in range(FIND_ATTEMPTS):
-        if attempt:
-            time.sleep(FIND_RETRY_DELAY if last_error is None else WAKE_DELAY)
+    wake = True
+    while True:
         try:
-            # A sleeping battery device doesn't answer the index search.
-            client.get_detection_sensibility(serial)
+            if wake:
+                # A sleeping battery device doesn't answer the index search.
+                client.get_detection_sensibility(serial)
+                wake = False
             response = client.search_records(serial, 1, serial, start, stop, size=20)
+            records = client.extract_record_list(response)
+            last_error = None
         except PyEzvizError as err:
-            last_error = err
-            continue
-        last_error = None
-        if (
-            match := _match_record(client.extract_record_list(response), event_time)
-        ) is not None:
+            # The search fails with this code while the window holds no
+            # recording, for example while the device is still writing it.
+            if f"code={NO_RECORDS_CODE}" not in str(err):
+                last_error = err
+                wake = True
+            records = []
+        if (match := _match_record(records, event_time)) is not None:
             return match
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(WAKE_DELAY if last_error is not None else FIND_RETRY_DELAY)
     if last_error is not None:
         raise last_error
-    raise PyEzvizError(f"No recording found for {event_time:%Y-%m-%d %H:%M:%S}")
+    raise PyEzvizError(
+        f"The device has no recording of the event at {event_time:%Y-%m-%d %H:%M:%S}"
+    )
 
 
 def _match_record(
@@ -365,7 +399,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;min
 video{{width:100%;max-height:90vh;display:none}}p{{padding:0 16px;text-align:center}}
 </style></head><body>
 <video id="v" controls playsinline autoplay muted></video>
-<p id="m">Downloading the recording of {when} from the device. This takes about a minute.</p>
+<p id="m">Downloading the recording of {when} from the device. This takes one to three minutes.</p>
 <script>
 const v=document.getElementById("v"),m=document.getElementById("m");
 async function poll(){{
@@ -373,7 +407,7 @@ async function poll(){{
     const r=await fetch("{base}.json?sig={sig}",{{cache:"no-store"}});
     const s=await r.json();
     if(s.state==="ready"){{v.src="{base}.mp4?sig={sig}";v.style.display="block";m.textContent="{when}";return;}}
-    if(s.state==="error"){{m.textContent="Cannot download the recording: "+s.message;return;}}
+    if(s.state==="error"){{m.textContent=s.message+". Reload the page to try again.";return;}}
   }}catch(e){{}}
   setTimeout(poll,2000);
 }}
